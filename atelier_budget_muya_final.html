@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atelier Budget Participatif - Commune de la Muya</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    header, footer {
+      background-color: #004080;
+      color: white;
+      text-align: center;
+      padding: 1rem;
+    }
+    main {
+      padding: 1rem;
+    }
+    section {
+      margin-bottom: 2rem;
+    }
+    .logos {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+    .logos img {
+      width: 120px;
+      height: auto;
+    }
+    .budget-choice input {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+    }
+    .simulation-result {
+      background-color: #e0e0e0;
+      padding: 1rem;
+      border-radius: 5px;
+      margin-top: 1rem;
+    }
+    canvas {
+      max-width: 100%;
+    }
+    #totalAffiche {
+      font-weight: bold;
+      margin-top: 1rem;
+      font-size: 1.1em;
+    }
+    .actions {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .actions button, .actions a {
+      padding: 0.8rem;
+      font-size: 1rem;
+      background-color: #004080;
+      color: white;
+      border: none;
+      text-align: center;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Budget Participatif - Commune de la Muya</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>Introduction</h2>
+      <p>Bienvenue dans l'atelier interactif sur le Budget Participatif de la commune de la Muya à Mbuji-Mayi. Apprenez comment votre avis peut influencer l'utilisation des ressources publiques.</p>
+    </section>
+
+    <section>
+      <h2>Compréhension du Budget Communal</h2>
+      <p>Découvrez les recettes et dépenses typiques à travers le graphique ci-dessous :</p>
+      <canvas id="budgetChart"></canvas>
+    </section>
+
+    <section>
+      <h2>Simulation - Allouez votre Budget</h2>
+      <p>Répartissez 100 000 USD sur les secteurs suivants :</p>
+      <form id="budgetForm">
+        <label>Santé: <input type="number" name="sante" required></label><br>
+        <label>Éducation: <input type="number" name="education" required></label><br>
+        <label>Infrastructure: <input type="number" name="infrastructure" required></label><br>
+        <label>Environnement: <input type="number" name="environnement" required></label><br>
+        <label>Sécurité: <input type="number" name="securite" required></label><br><br>
+        <div id="totalAffiche">Total alloué : 0 USD</div>
+        <canvas id="userBudgetChart"></canvas>
+        <div class="actions">
+          <button type="button" id="exportPDF">Exporter en PDF</button>
+          <a id="whatsAppShare" href="#" target="_blank">Partager via WhatsApp</a>
+        </div>
+        <button type="submit">Soumettre</button>
+      </form>
+      <div class="simulation-result" id="resultatSimulation"></div>
+    </section>
+
+    <section>
+      <h2>Débriefing</h2>
+      <p>Comparez vos choix avec le budget réel de la commune (à intégrer).</p>
+    </section>
+
+    <section>
+      <h2>Partenaires</h2>
+      <div class="logos">
+        <img src="/mnt/data/Logo RACOJ.png" alt="RACOJ">
+        <img src="/mnt/data/Logo UKAID (1).jpg" alt="UKAID">
+        <img src="/mnt/data/Logo TCC.jpg" alt="The Carter Center">
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Atelier Budget Participatif - Muya</p>
+  </footer>
+
+  <script>
+    const ctx = document.getElementById('budgetChart');
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: ['Santé', 'Éducation', 'Infrastructure', 'Environnement', 'Sécurité'],
+        datasets: [{
+          label: 'Budget Réel (USD)',
+          data: [25000, 30000, 20000, 10000, 15000],
+          backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#81C784', '#9575CD'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+
+    const form = document.getElementById('budgetForm');
+    const totalAffiche = document.getElementById('totalAffiche');
+    const inputs = form.querySelectorAll('input');
+
+    const userChartCtx = document.getElementById('userBudgetChart');
+    const userChart = new Chart(userChartCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Santé', 'Éducation', 'Infrastructure', 'Environnement', 'Sécurité'],
+        datasets: [{
+          label: 'Votre Répartition (USD)',
+          data: [0, 0, 0, 0, 0],
+          backgroundColor: '#42a5f5'
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 50000
+          }
+        }
+      }
+    });
+
+    function updateUserChart() {
+      const newData = Array.from(inputs).map(input => parseInt(input.value || 0, 10));
+      userChart.data.datasets[0].data = newData;
+      userChart.update();
+    }
+
+    function updateWhatsAppLink() {
+      const values = Array.from(inputs).map(i => `${i.name}: ${i.value || 0} USD`).join('%0A');
+      const text = `Ma répartition du budget participatif :%0A${values}`;
+      document.getElementById('whatsAppShare').href = `https://wa.me/?text=${text}`;
+    }
+
+    inputs.forEach(input => {
+      input.addEventListener('input', () => {
+        let total = 0;
+        inputs.forEach(field => {
+          total += parseInt(field.value || 0, 10);
+        });
+        totalAffiche.textContent = `Total alloué : ${total} USD`;
+        updateUserChart();
+        updateWhatsAppLink();
+      });
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      let total = 0;
+      inputs.forEach(field => {
+        total += parseInt(field.value || 0, 10);
+      });
+
+      const resultDiv = document.getElementById('resultatSimulation');
+      if (total > 100000) {
+        resultDiv.innerHTML = '<strong>Dépassement du budget !</strong> Vous avez alloué ' + total + ' USD.';
+        resultDiv.style.color = 'red';
+      } else if (total < 100000) {
+        resultDiv.innerHTML = '<strong>Budget non utilisé !</strong> Vous avez alloué ' + total + ' USD.';
+        resultDiv.style.color = 'orange';
+      } else {
+        resultDiv.innerHTML = '<strong>Parfait !</strong> Votre budget de 100 000 USD a été bien réparti.';
+        resultDiv.style.color = 'green';
+      }
+    });
+
+    document.getElementById('exportPDF').addEventListener('click', () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+      doc.text('Répartition du budget participatif', 10, y);
+      inputs.forEach((input, index) => {
+        y += 10;
+        doc.text(`${input.name}: ${input.value || 0} USD`, 10, y);
+      });
+      doc.save('budget_participatif_muya.pdf');
+    });
+  </script>
+</body>
+</html>
